@@ -1,0 +1,79 @@
+{
+  "poll_interval_seconds": 300,
+  "state_file": "state.json",
+  "timezone": "Asia/Shanghai",
+  "push": {
+    "telegram_bot_token": "",
+    "telegram_chat_id": "",
+    "webhook_url": "",
+    "macos_notification": true
+  },
+  "symbols": [
+    {
+      "symbol": "000660.KS",
+      "name": "SK hynix",
+      "currency": "KRW",
+      "alert_pct_from_previous_close": 3.0,
+      "alert_pct_from_last_seen": 2.0
+    },
+    {
+      "symbol": "NVDA",
+      "name": "NVIDIA",
+      "currency": "USD",
+      "alert_pct_from_previous_close": 3.0,
+      "alert_pct_from_last_seen": 2.0
+    },
+    {
+      "symbol": "MU",
+      "name": "Micron",
+      "currency": "USD",
+      "alert_pct_from_previous_close": 3.0,
+      "alert_pct_from_last_seen": 2.0
+    },
+    {
+      "symbol": "SMH",
+      "name": "VanEck Semiconductor ETF",
+      "currency": "USD",
+      "alert_pct_from_previous_close": 2.0,
+      "alert_pct_from_last_seen": 1.5
+    }
+  ],
+  "news": {
+    "enabled": true,
+    "poll_interval_seconds": 900,
+    "keywords": [
+      "SK hynix HBM",
+      "SK hynix Nvidia",
+      "Samsung Electronics HBM",
+      "Micron earnings",
+      "Nvidia HBM memory",
+      "KOSPI semiconductor"
+    ],
+    "language": "en-US",
+    "region": "US"
+  },
+  "translation": {
+    "enabled": true,
+    "target_language": "zh-CN",
+    "provider": "openai",
+    "api_key_env": "OPENAI_API_KEY",
+    "model": "gpt-5.4-mini",
+    "usage_log_file": "openai_usage_log.jsonl"
+  },
+  "daily_digest": {
+    "enabled": true,
+    "time": "10:00",
+    "lookback_hours": 24,
+    "max_news_per_keyword": 3,
+    "keywords": [
+      "global stock market",
+      "US stock market semiconductor",
+      "SK hynix HBM",
+      "Nvidia HBM memory",
+      "Micron earnings",
+      "KOSPI semiconductor"
+    ],
+    "language": "en-US",
+    "region": "US"
+  }
+}
