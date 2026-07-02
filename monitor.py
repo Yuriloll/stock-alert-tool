@@ -233,6 +233,10 @@ def safe_error_message(exc):
     return message
 
 
+def clean_secret(value):
+    return "".join(str(value or "").split())
+
+
 def format_news_title(config, title):
     return translate_text(config, clean_news_title(title))
 
@@ -253,8 +257,8 @@ def push_message(config, title, body):
         except Exception:
             pass
 
-    token = push.get("telegram_bot_token") or os.environ.get(push.get("telegram_bot_token_env", "TELEGRAM_BOT_TOKEN"), "")
-    chat_id = push.get("telegram_chat_id") or os.environ.get(push.get("telegram_chat_id_env", "TELEGRAM_CHAT_ID"), "")
+    token = clean_secret(push.get("telegram_bot_token") or os.environ.get(push.get("telegram_bot_token_env", "TELEGRAM_BOT_TOKEN"), ""))
+    chat_id = clean_secret(push.get("telegram_chat_id") or os.environ.get(push.get("telegram_chat_id_env", "TELEGRAM_CHAT_ID"), ""))
     if token and chat_id:
         url = f"https://api.telegram.org/bot{token}/sendMessage"
         messages = split_telegram_message(f"{title}\n{body}")
@@ -263,7 +267,7 @@ def push_message(config, title, body):
             try:
                 urllib.request.urlopen(url, data=payload, timeout=15).read()
             except Exception as exc:
-                print(f"Telegram push failed: {exc}", file=sys.stderr)
+                raise RuntimeError(f"Telegram push failed: {safe_error_message(exc)}") from exc
 
     webhook_url = push.get("webhook_url")
     if webhook_url:
@@ -272,7 +276,7 @@ def push_message(config, title, body):
         try:
             urllib.request.urlopen(req, timeout=15).read()
         except Exception as exc:
-            print(f"Webhook push failed: {exc}", file=sys.stderr)
+            raise RuntimeError(f"Webhook push failed: {safe_error_message(exc)}") from exc
 
 
 def split_telegram_message(text, limit=3800):
