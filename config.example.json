@@ -65,6 +65,7 @@
     "time": "10:00",
     "lookback_hours": 24,
     "max_news_per_keyword": 3,
+    "summary_items": 10,
     "keywords": [
       "global stock market",
       "US stock market semiconductor",

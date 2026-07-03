@@ -121,6 +121,15 @@ def clean_news_title(title):
     return title
 
 
+def split_news_title_source(title):
+    title = " ".join(str(title).split())
+    for separator in [" - ", " | "]:
+        if separator in title:
+            headline, source = title.rsplit(separator, 1)
+            return headline.strip(), source.strip()
+    return title, ""
+
+
 def translate_text(config, text):
     translation_config = config.get("translation", {})
     if not translation_config.get("enabled", False):
@@ -189,6 +198,54 @@ def translate_text_openai(config, text):
     except Exception as exc:
         print(f"OpenAI translation failed: {safe_error_message(exc)}", file=sys.stderr, flush=True)
         return text
+
+
+def ask_openai_json(config, prompt, max_output_tokens=1800):
+    translation_config = config.get("translation", {})
+    api_key_env = translation_config.get("api_key_env", "OPENAI_API_KEY")
+    api_key = (os.environ.get(api_key_env) or "").strip()
+    if not api_key:
+        raise RuntimeError(f"environment variable {api_key_env} is not set")
+
+    model = translation_config.get("model", "gpt-5.4-mini")
+    payload = json.dumps(
+        {
+            "model": model,
+            "input": prompt,
+            "max_output_tokens": max_output_tokens,
+            "store": False,
+        },
+        ensure_ascii=False,
+    ).encode("utf-8")
+    req = urllib.request.Request(
+        OPENAI_RESPONSES_URL,
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=45) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    log_openai_usage(config, data, model)
+    text = extract_openai_text(data).strip()
+    return json.loads(extract_json_text(text))
+
+
+def extract_json_text(text):
+    text = text.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        return text[start : end + 1]
+    return text
 
 
 def extract_openai_text(data):
@@ -365,6 +422,8 @@ def parse_google_news(xml_text):
     for item in channel.findall("item"):
         title = html.unescape(item.findtext("title") or "").strip()
         link = (item.findtext("link") or "").strip()
+        headline, source_from_title = split_news_title_source(title)
+        source = html.unescape(item.findtext("source") or source_from_title).strip()
         published_raw = item.findtext("pubDate") or ""
         published_ts = None
         if published_raw:
@@ -373,7 +432,15 @@ def parse_google_news(xml_text):
             except Exception:
                 published_ts = None
         if title and link:
-            items.append({"title": title, "link": link, "published_ts": published_ts})
+            items.append(
+                {
+                    "title": title,
+                    "headline": headline,
+                    "source": source,
+                    "link": link,
+                    "published_ts": published_ts,
+                }
+            )
     return items
 
 
@@ -431,12 +498,19 @@ def collect_price_snapshot(config):
 
 
 def collect_digest_news(config, digest_config):
+    articles = collect_digest_articles(config, digest_config)
+    if not articles:
+        return []
+    return summarize_digest_articles(config, digest_config, articles)
+
+
+def collect_digest_articles(config, digest_config):
     language = digest_config.get("language") or config.get("news", {}).get("language", "en-US")
     region = digest_config.get("region") or config.get("news", {}).get("region", "US")
     lookback_seconds = int(float(digest_config.get("lookback_hours", 24)) * 3600)
     cutoff = int(time.time()) - lookback_seconds
     max_per_keyword = int(digest_config.get("max_news_per_keyword", 3))
-    lines = []
+    articles = []
     seen_links = set()
 
     for keyword in digest_config.get("keywords", []):
@@ -445,7 +519,7 @@ def collect_digest_news(config, digest_config):
         try:
             items = parse_google_news(get_text(url))
         except Exception as exc:
-            lines.append(f"- {keyword}：新闻暂不可用（{exc}）")
+            print(f"Digest news failed for {keyword}: {safe_error_message(exc)}", file=sys.stderr, flush=True)
             continue
 
         count = 0
@@ -456,12 +530,117 @@ def collect_digest_news(config, digest_config):
             if article["link"] in seen_links:
                 continue
             seen_links.add(article["link"])
-            lines.append(f"- [{keyword}] {format_news_title(config, article['title'])}")
+            articles.append(
+                {
+                    "keyword": keyword,
+                    "title": clean_news_title(article.get("headline") or article.get("title") or ""),
+                    "source": article.get("source") or "",
+                    "link": article["link"],
+                    "published_ts": published_ts,
+                }
+            )
             count += 1
             if count >= max_per_keyword:
                 break
 
-    return lines
+    return articles
+
+
+def summarize_digest_articles(config, digest_config, articles):
+    max_items = int(digest_config.get("summary_items", 10))
+    if max_items <= 0:
+        max_items = 10
+
+    try:
+        selected = select_and_summarize_news(config, articles, max_items=max_items)
+        lines = []
+        for index, item in enumerate(selected[:max_items], start=1):
+            title = str(item.get("title_zh") or item.get("title") or "").strip()
+            summary = str(item.get("summary_zh") or "").strip()
+            source = str(item.get("source") or "").strip()
+            link = str(item.get("link") or "").strip()
+            if not title:
+                continue
+            lines.append(f"{index}. {title}")
+            if summary:
+                lines.append(f"   摘要：{summary}")
+            if source:
+                lines.append(f"   来源：{source}")
+            if link:
+                lines.append(f"   链接：{link}")
+        if lines:
+            return lines
+    except Exception as exc:
+        print(f"OpenAI news summary failed: {safe_error_message(exc)}", file=sys.stderr, flush=True)
+
+    fallback = []
+    for index, article in enumerate(articles[:max_items], start=1):
+        title = format_news_title(config, article["title"])
+        fallback.append(f"{index}. {title}")
+        if article.get("source"):
+            fallback.append(f"   来源：{article['source']}")
+        fallback.append(f"   链接：{article['link']}")
+    return fallback
+
+
+def select_and_summarize_news(config, articles, max_items=10):
+    candidates = articles[:80]
+    candidate_lines = []
+    for idx, article in enumerate(candidates, start=1):
+        published = ""
+        if article.get("published_ts"):
+            published = datetime.fromtimestamp(article["published_ts"], tz=ZoneInfo("UTC")).strftime("%Y-%m-%d %H:%M UTC")
+        candidate_lines.append(
+            json.dumps(
+                {
+                    "id": idx,
+                    "keyword": article.get("keyword", ""),
+                    "title": article.get("title", ""),
+                    "source": article.get("source", ""),
+                    "published": published,
+                    "link": article.get("link", ""),
+                },
+                ensure_ascii=False,
+            )
+        )
+
+    prompt = (
+        "You are preparing a Chinese daily market digest for an investor tracking AI stocks, semiconductors, "
+        "HBM memory, data centers, hyperscaler capex, Korean semiconductor stocks, and major US tech stocks.\n"
+        f"From the candidate news below, choose the {max_items} most valuable items. Prioritize market-moving, "
+        "company-specific, supply-chain, earnings, policy/export-control, capex, data-center power, and broad risk sentiment news. "
+        "Deprioritize duplicate stories, generic stock-picking articles, SEO content, and repeated versions of the same event.\n\n"
+        "Return valid JSON only, no markdown. The JSON shape must be:\n"
+        "{\"items\":[{\"id\":1,\"title_zh\":\"中文标题\",\"summary_zh\":\"用1到2句话说明新闻事实及其对AI/半导体股票的潜在影响。不要编造原文没有的信息。\",\"source\":\"source\",\"link\":\"url\"}]}\n\n"
+        "Candidates:\n"
+        + "\n".join(candidate_lines)
+    )
+    data = ask_openai_json(config, prompt, max_output_tokens=2600)
+    items = data.get("items", [])
+    by_id = {idx: article for idx, article in enumerate(candidates, start=1)}
+    selected = []
+    seen_links = set()
+    for item in items:
+        try:
+            article_id = int(item.get("id"))
+        except Exception:
+            article_id = None
+        original = by_id.get(article_id, {})
+        link = str(original.get("link") or item.get("link") or "").strip()
+        if link in seen_links:
+            continue
+        seen_links.add(link)
+        selected.append(
+            {
+                "title_zh": item.get("title_zh") or format_news_title(config, original.get("title", "")),
+                "summary_zh": item.get("summary_zh") or "",
+                "source": item.get("source") or original.get("source") or "",
+                "link": link,
+            }
+        )
+        if len(selected) >= max_items:
+            break
+    return selected
 
 
 def should_send_daily_digest(config, state, now=None):

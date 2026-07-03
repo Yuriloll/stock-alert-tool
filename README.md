@@ -76,14 +76,15 @@ python3 monitor.py --config config.json --daily-digest
   "enabled": true,
   "time": "10:00",
   "lookback_hours": 24,
-  "max_news_per_keyword": 3
+  "max_news_per_keyword": 3,
+  "summary_items": 10
 }
 ```
 
 它会在配置的时区里每天 10:00 推送一次，内容包括：
 
 - `symbols` 里所有股票的当前价格、相对昨收涨跌幅、行情时间。
-- `daily_digest.keywords` 里每个关键词过去 24 小时内的 Google News RSS 新闻。
+- 从 `daily_digest.keywords` 抓取过去 24 小时内的 Google News RSS 新闻，去重后挑选最有价值的 10 条，用中文总结，并附带新闻源链接。
 
 如果你想马上测试每日简报，可以运行：
 
