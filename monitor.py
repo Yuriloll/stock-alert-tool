@@ -336,6 +336,15 @@ def push_message(config, title, body):
             raise RuntimeError(f"Webhook push failed: {safe_error_message(exc)}") from exc
 
 
+def try_push_failure_message(config, title, body):
+    try:
+        push_message(config, title, body)
+        return True
+    except Exception as exc:
+        print(f"Failure notice push failed: {safe_error_message(exc)}", file=sys.stderr, flush=True)
+        return False
+
+
 def split_telegram_message(text, limit=3800):
     if len(text) <= limit:
         return [text]
@@ -477,7 +486,7 @@ def check_news(config, state, force=False):
         state["news"][keyword] = merged
 
 
-def collect_price_snapshot(config):
+def collect_price_snapshot(config, failures=None):
     tz_name = config.get("timezone", "Asia/Shanghai")
     lines = []
     for item in config.get("symbols", []):
@@ -493,18 +502,21 @@ def collect_price_snapshot(config):
             time_text = format_time(quote.get("market_time"), tz_name)
             lines.append(f"- {name} ({symbol})：{price:,.2f} {currency}，较昨收 {move_text}，{time_text}")
         except Exception as exc:
-            lines.append(f"- {name} ({symbol})：价格暂不可用（{exc}）")
+            error = safe_error_message(exc)
+            lines.append(f"- {name} ({symbol})：价格暂不可用（{error}）")
+            if failures is not None:
+                failures.append(f"行情抓取失败：{name} ({symbol})：{error}")
     return lines
 
 
-def collect_digest_news(config, digest_config):
-    articles = collect_digest_articles(config, digest_config)
+def collect_digest_news(config, digest_config, failures=None):
+    articles = collect_digest_articles(config, digest_config, failures=failures)
     if not articles:
         return []
     return summarize_digest_articles(config, digest_config, articles)
 
 
-def collect_digest_articles(config, digest_config):
+def collect_digest_articles(config, digest_config, failures=None):
     language = digest_config.get("language") or config.get("news", {}).get("language", "en-US")
     region = digest_config.get("region") or config.get("news", {}).get("region", "US")
     lookback_seconds = int(float(digest_config.get("lookback_hours", 24)) * 3600)
@@ -519,7 +531,10 @@ def collect_digest_articles(config, digest_config):
         try:
             items = parse_google_news(get_text(url))
         except Exception as exc:
-            print(f"Digest news failed for {keyword}: {safe_error_message(exc)}", file=sys.stderr, flush=True)
+            error = safe_error_message(exc)
+            print(f"Digest news failed for {keyword}: {error}", file=sys.stderr, flush=True)
+            if failures is not None:
+                failures.append(f"新闻抓取失败：{keyword}：{error}")
             continue
 
         count = 0
@@ -667,23 +682,41 @@ def send_daily_digest(config, state, force=False):
     if not force and not should_send_daily_digest(config, state, now=now):
         return
 
-    price_lines = collect_price_snapshot(config)
-    news_lines = collect_digest_news(config, digest_config)
+    failures = []
+    price_lines = collect_price_snapshot(config, failures=failures)
+    news_lines = collect_digest_news(config, digest_config, failures=failures)
     if not news_lines:
         news_lines = ["- 配置的时间窗口内没有找到匹配新闻。"]
 
-    body = "\n".join(
-        [
-            f"每日市场简报（{now.strftime('%Y-%m-%d %H:%M %Z')}）",
-            "",
-            "价格",
-            *price_lines,
-            "",
-            f"过去 {digest_config.get('lookback_hours', 24)} 小时新闻",
-            *news_lines,
-        ]
-    )
-    push_message(config, "每日市场简报", body)
+    body_parts = [
+        f"每日市场简报（{now.strftime('%Y-%m-%d %H:%M %Z')}）",
+        "",
+        "价格",
+        *price_lines,
+        "",
+        f"过去 {digest_config.get('lookback_hours', 24)} 小时新闻",
+        *news_lines,
+    ]
+    if failures:
+        body_parts.extend(["", "抓取失败", *[f"- {failure}" for failure in failures[:20]]])
+        if len(failures) > 20:
+            body_parts.append(f"- 另外还有 {len(failures) - 20} 条失败，详见 GitHub Actions 日志。")
+    body = "\n".join(body_parts)
+
+    try:
+        push_message(config, "每日市场简报", body)
+    except Exception as exc:
+        error = safe_error_message(exc)
+        failure_body = "\n".join(
+            [
+                f"每日市场简报已生成，但完整内容推送失败。",
+                f"时间：{now.strftime('%Y-%m-%d %H:%M %Z')}",
+                f"失败原因：{error}",
+                "处理：请打开 GitHub Actions 查看本次运行日志；如果是 Telegram 限制，通常是消息过长、token/chat_id 错误或网络问题。",
+            ]
+        )
+        try_push_failure_message(config, "每日市场简报推送失败", failure_body)
+        raise
 
     state.setdefault("daily_digest", {})
     state["daily_digest"]["last_sent_date"] = now.strftime("%Y-%m-%d")

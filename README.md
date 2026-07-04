@@ -103,7 +103,7 @@ python3 monitor.py --config config.json --once --snapshot
 config.github-actions.json
 ```
 
-它会在 GitHub 云端每天 UTC 02:07 运行一次，也就是北京时间 10:07，所以你的电脑关机、合盖、断网都不影响。之所以是 10:07，是为了避开整点高峰；GitHub 官方说明定时任务在高负载时可能延迟，整点尤其常见。
+它会在 GitHub 云端每天 UTC 02:23 运行一次，也就是北京时间 10:23，所以你的电脑关机、合盖、断网都不影响。之所以是 10:23，是为了避开整点高峰；GitHub 官方说明定时任务在高负载时可能延迟，整点尤其常见。
 
 上传到 GitHub 前，不要提交本地 `config.json`、`state.json`、`openai_usage_log.jsonl`。`.gitignore` 已经把它们排除。
 
