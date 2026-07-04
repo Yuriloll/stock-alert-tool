@@ -2,7 +2,7 @@ name: Daily Market Digest
 
 on:
   schedule:
-    - cron: "23 2 * * *"
+    - cron: "48 14 * * *"
   workflow_dispatch:
 
 concurrency:
