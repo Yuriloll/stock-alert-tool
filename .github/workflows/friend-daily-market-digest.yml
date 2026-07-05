@@ -2,7 +2,7 @@ name: Friend Daily Market Digest
 
 on:
   schedule:
-    - cron: "23 10 * * *"
+    - cron: "59 12 * * *"
       timezone: "Asia/Shanghai"
   workflow_dispatch:
 

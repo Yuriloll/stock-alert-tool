@@ -109,7 +109,7 @@
   },
   "daily_digest": {
     "enabled": true,
-    "time": "10:23",
+    "time": "12:59",
     "lookback_hours": 24,
     "max_news_per_keyword": 3,
     "summary_items": 10,
