@@ -1,0 +1,134 @@
+{
+  "state_file": "state.json",
+  "timezone": "Asia/Shanghai",
+  "push": {
+    "telegram_bot_token": "",
+    "telegram_bot_token_env": "TELEGRAM_BOT_TOKEN",
+    "telegram_chat_id": "",
+    "telegram_chat_id_env": "TELEGRAM_CHAT_ID",
+    "webhook_url": "",
+    "macos_notification": false
+  },
+  "symbols": [
+    {
+      "symbol": "000660.KS",
+      "name": "SK hynix",
+      "currency": "KRW",
+      "alert_pct_from_previous_close": 3.0,
+      "alert_pct_from_last_seen": 2.0
+    },
+    {
+      "symbol": "005930.KS",
+      "name": "Samsung Electronics",
+      "currency": "KRW",
+      "alert_pct_from_previous_close": 3.0,
+      "alert_pct_from_last_seen": 2.0
+    },
+    {
+      "symbol": "NVDA",
+      "name": "NVIDIA",
+      "currency": "USD",
+      "alert_pct_from_previous_close": 3.0,
+      "alert_pct_from_last_seen": 2.0
+    },
+    {
+      "symbol": "MSFT",
+      "name": "Microsoft",
+      "currency": "USD",
+      "alert_pct_from_previous_close": 2.5,
+      "alert_pct_from_last_seen": 1.5
+    },
+    {
+      "symbol": "GOOGL",
+      "name": "Alphabet",
+      "currency": "USD",
+      "alert_pct_from_previous_close": 2.5,
+      "alert_pct_from_last_seen": 1.5
+    },
+    {
+      "symbol": "AVGO",
+      "name": "Broadcom",
+      "currency": "USD",
+      "alert_pct_from_previous_close": 3.0,
+      "alert_pct_from_last_seen": 2.0
+    },
+    {
+      "symbol": "AMD",
+      "name": "AMD",
+      "currency": "USD",
+      "alert_pct_from_previous_close": 3.5,
+      "alert_pct_from_last_seen": 2.5
+    },
+    {
+      "symbol": "TSM",
+      "name": "TSMC ADR",
+      "currency": "USD",
+      "alert_pct_from_previous_close": 3.0,
+      "alert_pct_from_last_seen": 2.0
+    },
+    {
+      "symbol": "MU",
+      "name": "Micron",
+      "currency": "USD",
+      "alert_pct_from_previous_close": 3.0,
+      "alert_pct_from_last_seen": 2.0
+    },
+    {
+      "symbol": "SMH",
+      "name": "VanEck Semiconductor ETF",
+      "currency": "USD",
+      "alert_pct_from_previous_close": 2.0,
+      "alert_pct_from_last_seen": 1.5
+    }
+  ],
+  "news": {
+    "enabled": true,
+    "poll_interval_seconds": 900,
+    "keywords": [
+      "AI stocks",
+      "artificial intelligence stocks",
+      "SK hynix HBM",
+      "SK hynix Nvidia",
+      "Samsung Electronics HBM",
+      "Nvidia AI chips",
+      "Broadcom AI chips",
+      "AMD AI accelerator",
+      "Micron earnings",
+      "Nvidia HBM memory",
+      "KOSPI semiconductor",
+      "AI data center power",
+      "hyperscaler AI capex"
+    ],
+    "language": "en-US",
+    "region": "US"
+  },
+  "translation": {
+    "enabled": false,
+    "target_language": "zh-CN",
+    "provider": "none"
+  },
+  "daily_digest": {
+    "enabled": true,
+    "time": "10:23",
+    "lookback_hours": 24,
+    "max_news_per_keyword": 3,
+    "summary_items": 10,
+    "summary_provider": "local",
+    "keywords": [
+      "global stock market",
+      "US stock market semiconductor",
+      "AI stocks",
+      "hyperscaler AI capex",
+      "SK hynix HBM",
+      "Samsung Electronics HBM",
+      "Nvidia AI chips",
+      "Nvidia HBM memory",
+      "Broadcom AI chips",
+      "Micron earnings",
+      "KOSPI semiconductor",
+      "AI data center power"
+    ],
+    "language": "en-US",
+    "region": "US"
+  }
+}
